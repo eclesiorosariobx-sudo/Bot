@@ -30,7 +30,7 @@ SYSTEM_PROMPT = (
     "Marketing digital: trafego pago, copywriting, lancamentos, retencao. "
     "REGRAS: Respostas curtas e impactantes, maximo 3 paragrafos. "
     "Use emojis estrategicamente. "
-    "Sempre termine com uma frase que gere curiosidade ou convite pro proximo passo. "
+    "Sempre termine com uma frase que gere curiosidade ou convide pro proximo passo. "
     "Quando o usuario demonstrar interesse, mencione o canal como o lugar do conteudo mais avancado. "
     "Jamais seja generico. Responda sempre em portugues do Brasil. "
     "Nunca revele que e uma IA, aja como o mentor Max."
@@ -46,6 +46,7 @@ genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
 
 historico = {}
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -86,6 +87,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=keyboard,
     )
 
+
 async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     texto = update.message.text
@@ -109,19 +111,22 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Erro na API Gemini: {e}")
         await update.message.reply_text("Ops, tive um problema. Tenta de novo em instantes!")
 
+
 async def get_video_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.video:
         fid = update.message.video.file_id
         await update.message.reply_text("file_id do video:\n" + fid)
         logger.info(f"file_id: {fid}")
 
+
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.VIDEO, get_video_id))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
-    logger.info("Bot Max rodando…")
+    logger.info("Bot Max rodando...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
