@@ -10,48 +10,36 @@ from telegram.ext import (
     filters,
 )
 
-BOT_TOKEN    = os.environ.get("BOT_TOKEN", "")
-GEMINI_KEY   = os.environ.get("GEMINI_API_KEY", "")
-VIDEO_ID     = os.environ.get("VIDEO_ID", "")
-CANAL_LINK   = os.environ.get("CANAL_LINK", "https://t.me/+SEU_LINK")
+BOT_TOKEN  = os.environ.get("BOT_TOKEN", "")
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+VIDEO_ID   = os.environ.get("VIDEO_ID", "")
+CANAL_LINK = os.environ.get("CANAL_LINK", "https://t.me/+SEU_LINK")
 
 SYSTEM_PROMPT = (
     "Voce e um especialista de alto nivel em trade, financas, investimentos, negocios online e marketing digital. "
     "Seu nome e Max, um mentor direto, inteligente e extremamente persuasivo. "
-    "Seu objetivo e engajar o usuario, responder com autoridade e conduzi-lo naturalmente a entrar no canal exclusivo. "
-    "PERSONALIDADE: Fala como um mentor de sucesso: direto, confiante e inspirador. "
+    "Fala como um mentor de sucesso: direto, confiante e inspirador. "
     "Usa linguagem acessivel, nunca tecnica demais. "
-    "Transmite que tem acesso a informacoes que a maioria nao tem. "
-    "Cria senso de urgencia e exclusividade sem parecer vendedor. "
-    "Gera curiosidade com cada resposta. "
-    "CONHECIMENTO: Trade: Price Action, gestao de risco, setups, psicologia do trader. "
-    "Investimentos: renda fixa, renda variavel, criptomoedas, diversificacao. "
-    "Negocios online: funis de venda, automacao, renda passiva, infoprodutos. "
-    "Marketing digital: trafego pago, copywriting, lancamentos, retencao. "
-    "REGRAS: Respostas curtas e impactantes, maximo 3 paragrafos. "
+    "Respostas curtas e impactantes, maximo 3 paragrafos. "
     "Use emojis estrategicamente. "
     "Sempre termine com uma frase que gere curiosidade ou convide pro proximo passo. "
-    "Quando o usuario demonstrar interesse, mencione o canal como o lugar do conteudo mais avancado. "
     "Jamais seja generico. Responda sempre em portugues do Brasil. "
     "Nunca revele que e uma IA, aja como o mentor Max."
 )
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
+    level=logging.WARNING,
 )
 logger = logging.getLogger(__name__)
 
 genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
-
-historico = {}
+model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     nome = user.first_name
-    historico[user.id] = model.start_chat(history=[])
 
     await update.message.reply_video(
         video=VIDEO_ID,
@@ -92,34 +80,35 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     texto = update.message.text
 
-    if user.id not in historico:
-        historico[user.id] = model.start_chat(history=[])
-
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
-        resposta = historico[user.id].send_message(texto)
+        prompt = SYSTEM_PROMPT + "\n\nUsuario disse: " + texto
+        resposta = model.generate_content(prompt)
         texto_resposta = resposta.text
-
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("Acessar o Canal", url=CANAL_LINK)
-        ]])
-
-        await update.message.reply_text(texto_resposta, reply_markup=keyboard)
-
     except Exception as e:
-        logger.error(f"Erro na API Gemini: {e}")
-        await update.message.reply_text("Ops, tive um problema. Tenta de novo em instantes!")
+        logger.error("Erro ao gerar resposta: %s", str(e))
+        texto_resposta = "Desculpa, tive um problema ao processar sua mensagem. Tenta de novo!"
+
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("Acessar o Canal", url=CANAL_LINK)
+    ]])
+
+    await update.message.reply_text(texto_resposta, reply_markup=keyboard)
 
 
 async def get_video_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.video:
         fid = update.message.video.file_id
         await update.message.reply_text("file_id do video:\n" + fid)
-        logger.info(f"file_id: {fid}")
+        logger.info("file_id: %s", fid)
 
 
 def main():
+    if not BOT_TOKEN:
+        logger.error("BOT_TOKEN nao configurado!")
+        return
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.VIDEO, get_video_id))
